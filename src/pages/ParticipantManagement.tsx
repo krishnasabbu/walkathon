@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { dataService } from '@/services/dataService';
 import { Participant } from '@/types';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -25,13 +25,8 @@ export function ParticipantManagement() {
 
   async function loadParticipants() {
     try {
-      const { data, error } = await supabase
-        .from('participants')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setParticipants(data || []);
+      const data = await dataService.participants.getAll();
+      setParticipants(data);
     } catch (error) {
       console.error('Error loading participants:', error);
     } finally {
@@ -61,12 +56,7 @@ export function ParticipantManagement() {
     const newStatus = participant.status === 'Active' ? 'Inactive' : 'Active';
 
     try {
-      const { error } = await supabase
-        .from('participants')
-        .update({ status: newStatus })
-        .eq('id', participant.id);
-
-      if (error) throw error;
+      await dataService.participants.update(participant.id, { status: newStatus });
       await loadParticipants();
     } catch (error) {
       console.error('Error updating participant:', error);
@@ -250,7 +240,6 @@ function AddParticipantModal({ onClose, onSuccess }: { onClose: () => void; onSu
     name: '',
     team: '',
     email: '',
-    password: '',
     role: 'participant' as 'admin' | 'participant'
   });
   const [loading, setLoading] = useState(false);
@@ -262,33 +251,15 @@ function AddParticipantModal({ onClose, onSuccess }: { onClose: () => void; onSu
     setLoading(true);
 
     try {
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      await dataService.participants.add({
+        employee_id: formData.employee_id,
+        name: formData.name,
+        team: formData.team,
         email: formData.email,
-        password: formData.password,
-        options: {
-          data: {
-            name: formData.name
-          }
-        }
+        role: formData.role,
+        status: 'Active',
+        total_points: 0
       });
-
-      if (authError) throw authError;
-
-      if (authData.user) {
-        const { error: insertError } = await supabase
-          .from('participants')
-          .insert([{
-            user_id: authData.user.id,
-            employee_id: formData.employee_id,
-            name: formData.name,
-            team: formData.team,
-            email: formData.email,
-            role: formData.role,
-            status: 'Active'
-          }]);
-
-        if (insertError) throw insertError;
-      }
 
       onSuccess();
     } catch (err: any) {
@@ -330,14 +301,6 @@ function AddParticipantModal({ onClose, onSuccess }: { onClose: () => void; onSu
             type="email"
             value={formData.email}
             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            required
-          />
-
-          <Input
-            label="Password"
-            type="password"
-            value={formData.password}
-            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
             required
           />
 

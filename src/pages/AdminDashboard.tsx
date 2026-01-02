@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { dataService } from '@/services/dataService';
 import { Card } from '@/components/ui/Card';
 import { Users, Activity, Footprints, Award, TrendingUp } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -41,15 +41,8 @@ export function AdminDashboard() {
     try {
       const today = format(new Date(), 'yyyy-MM-dd');
 
-      const { data: participants } = await supabase
-        .from('participants')
-        .select('*')
-        .eq('status', 'Active');
-
-      const { data: todayActivities } = await supabase
-        .from('daily_activities')
-        .select('*')
-        .eq('date', today);
+      const participants = await dataService.participants.getActive();
+      const todayActivities = await dataService.activities.getByDate(today);
 
       const uniqueParticipantsToday = new Set(todayActivities?.map(a => a.participant_id)).size;
 
@@ -58,21 +51,20 @@ export function AdminDashboard() {
       const totalPointsToday = todayActivities?.reduce((sum, a) => sum + a.points_earned, 0) || 0;
 
       setMetrics({
-        totalParticipants: participants?.length || 0,
+        totalParticipants: participants.length,
         activeToday: uniqueParticipantsToday,
         totalWorkoutMinutes,
         totalSteps,
         totalPointsToday
       });
 
-      const { data: topParticipants } = await supabase
-        .from('participants')
-        .select('id, name, total_points, team')
-        .eq('status', 'Active')
-        .order('total_points', { ascending: false })
-        .limit(10);
+      const allParticipants = await dataService.participants.getAll();
+      const topParticipants = allParticipants
+        .filter(p => p.status === 'Active')
+        .sort((a, b) => b.total_points - a.total_points)
+        .slice(0, 10);
 
-      setLeaderboard(topParticipants || []);
+      setLeaderboard(topParticipants);
 
       const last7Days = Array.from({ length: 7 }, (_, i) => {
         const date = subDays(new Date(), 6 - i);
@@ -80,14 +72,11 @@ export function AdminDashboard() {
       });
 
       const trendPromises = last7Days.map(async (date) => {
-        const { data } = await supabase
-          .from('daily_activities')
-          .select('*')
-          .eq('date', date);
+        const activities = await dataService.activities.getByDate(date);
 
-        const uniqueParticipants = new Set(data?.map(a => a.participant_id)).size;
-        const totalSteps = data?.reduce((sum, a) => sum + a.steps_count, 0) || 0;
-        const totalMinutes = data?.reduce((sum, a) => sum + a.duration_minutes, 0) || 0;
+        const uniqueParticipants = new Set(activities.map(a => a.participant_id)).size;
+        const totalSteps = activities.reduce((sum, a) => sum + a.steps_count, 0);
+        const totalMinutes = activities.reduce((sum, a) => sum + a.duration_minutes, 0);
 
         return {
           date: format(new Date(date), 'MMM dd'),
@@ -100,12 +89,10 @@ export function AdminDashboard() {
       const trendData = await Promise.all(trendPromises);
       setDailyTrend(trendData);
 
-      const { data: allActivities } = await supabase
-        .from('daily_activities')
-        .select('workout_type');
+      const allActivities = await dataService.activities.getAll();
 
       const activityCounts: Record<string, number> = {};
-      allActivities?.forEach(activity => {
+      allActivities.forEach(activity => {
         activityCounts[activity.workout_type] = (activityCounts[activity.workout_type] || 0) + 1;
       });
 

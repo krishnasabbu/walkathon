@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/contexts/AuthContext';
+import { dataService } from '@/services/dataService';
+import { useApp } from '@/contexts/AppContext';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -11,7 +11,7 @@ import { Activity, Footprints, Award, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
 
 export function LogActivity() {
-  const { participant } = useAuth();
+  const { currentParticipant } = useApp();
   const [workoutType, setWorkoutType] = useState<WorkoutType>('Simple Cardio');
   const [activityDetails, setActivityDetails] = useState('');
   const [durationMinutes, setDurationMinutes] = useState('');
@@ -22,26 +22,20 @@ export function LogActivity() {
   const [todayActivities, setTodayActivities] = useState<any[]>([]);
 
   useEffect(() => {
-    if (participant) {
+    if (currentParticipant) {
       loadTodayActivities();
     }
-  }, [participant]);
+  }, [currentParticipant]);
 
   async function loadTodayActivities() {
-    if (!participant) return;
+    if (!currentParticipant) return;
 
     const today = format(new Date(), 'yyyy-MM-dd');
 
     try {
-      const { data, error } = await supabase
-        .from('daily_activities')
-        .select('*')
-        .eq('participant_id', participant.id)
-        .eq('date', today)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setTodayActivities(data || []);
+      const activities = await dataService.activities.getByParticipant(currentParticipant.id);
+      const todayActs = activities.filter(a => a.date === today);
+      setTodayActivities(todayActs);
     } catch (err) {
       console.error('Error loading activities:', err);
     }
@@ -52,7 +46,7 @@ export function LogActivity() {
     setError('');
     setSuccess('');
 
-    if (!participant) {
+    if (!currentParticipant) {
       setError('Participant information not found');
       return;
     }
@@ -70,6 +64,11 @@ export function LogActivity() {
       return;
     }
 
+    if (!activityDetails.trim()) {
+      setError('Please provide activity details');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -77,19 +76,16 @@ export function LogActivity() {
       const stepPoints = calculateStepPoints(steps);
       const totalPoints = workoutPoints + stepPoints;
 
-      const { error: insertError } = await supabase
-        .from('daily_activities')
-        .insert([{
-          date: format(new Date(), 'yyyy-MM-dd'),
-          participant_id: participant.id,
-          workout_type: workoutType,
-          activity_details: activityDetails,
-          duration_minutes: duration,
-          steps_count: steps,
-          points_earned: totalPoints
-        }]);
-
-      if (insertError) throw insertError;
+      await dataService.activities.add({
+        date: format(new Date(), 'yyyy-MM-dd'),
+        participant_id: currentParticipant.id,
+        workout_type: workoutType,
+        activity_details: activityDetails,
+        duration_minutes: duration,
+        steps_count: steps,
+        points_earned: totalPoints,
+        proof_filename: null
+      });
 
       setSuccess(`Activity logged successfully! You earned ${totalPoints} points.`);
       setActivityDetails('');

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { dataService } from '@/services/dataService';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Award, Calendar, TrendingUp, CheckCircle } from 'lucide-react';
@@ -35,28 +35,16 @@ export function ConsistencyBonuses() {
       const weekStartStr = format(weekStart, 'yyyy-MM-dd');
       const weekEndStr = format(weekEnd, 'yyyy-MM-dd');
 
-      const { data: activeParticipants } = await supabase
-        .from('participants')
-        .select('*')
-        .eq('status', 'Active');
+      const activeParticipants = await dataService.participants.getActive();
+      const activities = await dataService.activities.getByDateRange(weekStartStr, weekEndStr);
+      const existingBonuses = await dataService.bonuses.getByWeek(weekStartStr);
 
-      const { data: activities } = await supabase
-        .from('daily_activities')
-        .select('*')
-        .gte('date', weekStartStr)
-        .lte('date', weekEndStr);
-
-      const { data: existingBonuses } = await supabase
-        .from('weekly_bonuses')
-        .select('participant_id')
-        .eq('week_start_date', weekStartStr);
-
-      const awardedParticipants = new Set(existingBonuses?.map(b => b.participant_id) || []);
+      const awardedParticipants = new Set(existingBonuses.map(b => b.participant_id));
 
       const consistencyData: ParticipantConsistency[] = [];
 
-      for (const participant of activeParticipants || []) {
-        const participantActivities = activities?.filter(a => a.participant_id === participant.id) || [];
+      for (const participant of activeParticipants) {
+        const participantActivities = activities.filter(a => a.participant_id === participant.id);
         const uniqueDays = new Set(participantActivities.map(a => a.date)).size;
         const bonusPoints = calculateConsistencyBonus(uniqueDays);
         const bonusLabel = getConsistencyLabel(uniqueDays);
@@ -110,11 +98,7 @@ export function ConsistencyBonuses() {
         points_earned: p.bonusPoints
       }));
 
-      const { error } = await supabase
-        .from('weekly_bonuses')
-        .insert(bonusRecords);
-
-      if (error) throw error;
+      await dataService.bonuses.addBulk(bonusRecords);
 
       alert(`Successfully awarded bonuses to ${bonusesToAward.length} participants!`);
       await calculateConsistency();

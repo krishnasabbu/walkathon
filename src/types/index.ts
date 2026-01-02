@@ -1,6 +1,5 @@
 export interface Participant {
   id: string;
-  user_id: string | null;
   employee_id: string;
   name: string;
   team: string;

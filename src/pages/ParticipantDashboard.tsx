@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/contexts/AuthContext';
+import { dataService } from '@/services/dataService';
+import { useApp } from '@/contexts/AppContext';
 import { Card } from '@/components/ui/Card';
 import { Award, Calendar, Flame, TrendingUp, Activity } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 export function ParticipantDashboard() {
-  const { participant } = useAuth();
+  const { currentParticipant } = useApp();
   const [stats, setStats] = useState({
     totalPoints: 0,
     todayPoints: 0,
@@ -20,46 +20,32 @@ export function ParticipantDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (participant) {
+    if (currentParticipant) {
       loadDashboardData();
     }
-  }, [participant]);
+  }, [currentParticipant]);
 
   async function loadDashboardData() {
-    if (!participant) return;
+    if (!currentParticipant) return;
 
     try {
       const today = format(new Date(), 'yyyy-MM-dd');
       const weekStart = format(startOfWeek(new Date()), 'yyyy-MM-dd');
       const weekEnd = format(endOfWeek(new Date()), 'yyyy-MM-dd');
 
-      const { data: allActivities } = await supabase
-        .from('daily_activities')
-        .select('*')
-        .eq('participant_id', participant.id)
-        .order('date', { ascending: false });
+      const allActivities = await dataService.activities.getByParticipant(currentParticipant.id);
 
-      const { data: todayActivities } = await supabase
-        .from('daily_activities')
-        .select('*')
-        .eq('participant_id', participant.id)
-        .eq('date', today);
+      const todayActivities = allActivities.filter(a => a.date === today);
+      const weekActivities = allActivities.filter(a => a.date >= weekStart && a.date <= weekEnd);
 
-      const { data: weekActivities } = await supabase
-        .from('daily_activities')
-        .select('*')
-        .eq('participant_id', participant.id)
-        .gte('date', weekStart)
-        .lte('date', weekEnd);
+      const todayPoints = todayActivities.reduce((sum, a) => sum + a.points_earned, 0);
 
-      const todayPoints = todayActivities?.reduce((sum, a) => sum + a.points_earned, 0) || 0;
+      const weeklyUniqueDays = new Set(weekActivities.map(a => a.date)).size;
 
-      const weeklyUniqueDays = new Set(weekActivities?.map(a => a.date)).size;
-
-      const currentStreak = calculateStreak(allActivities || []);
+      const currentStreak = calculateStreak(allActivities);
 
       setStats({
-        totalPoints: participant.total_points,
+        totalPoints: currentParticipant.total_points,
         todayPoints,
         weeklyActiveDays: weeklyUniqueDays,
         totalActivities: allActivities?.length || 0,
@@ -73,7 +59,7 @@ export function ParticipantDashboard() {
 
       const weeklyChartData = daysOfWeek.map(day => {
         const dateStr = format(day, 'yyyy-MM-dd');
-        const dayActivities = weekActivities?.filter(a => a.date === dateStr) || [];
+        const dayActivities = weekActivities.filter(a => a.date === dateStr);
         const points = dayActivities.reduce((sum, a) => sum + a.points_earned, 0);
         const minutes = dayActivities.reduce((sum, a) => sum + a.duration_minutes, 0);
 
@@ -86,7 +72,7 @@ export function ParticipantDashboard() {
       });
 
       setWeeklyData(weeklyChartData);
-      setRecentActivities(allActivities?.slice(0, 10) || []);
+      setRecentActivities(allActivities.slice(0, 10));
 
     } catch (error) {
       console.error('Error loading dashboard:', error);
