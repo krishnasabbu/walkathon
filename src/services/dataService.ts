@@ -1,12 +1,13 @@
 import { Participant, DailyActivity, WeeklyBonus, WorkoutCategory } from '@/types';
-import { supabase } from '@/lib/supabase';
 import participantsData from '@/data/participants.json';
 import activitiesData from '@/data/activities.json';
 import bonusesData from '@/data/bonuses.json';
+import categoriesData from '@/data/categories.json';
 
 let participants: Participant[] = [...(participantsData as Participant[])];
 let activities: DailyActivity[] = [...(activitiesData as DailyActivity[])];
 let bonuses: WeeklyBonus[] = [...(bonusesData as WeeklyBonus[])];
+let categories: WorkoutCategory[] = [...(categoriesData as WorkoutCategory[])];
 
 export const dataService = {
   participants: {
@@ -177,56 +178,65 @@ export const dataService = {
 
   categories: {
     getAll: async (): Promise<WorkoutCategory[]> => {
-      const { data, error } = await supabase
-        .from('workout_categories')
-        .select('*')
-        .order('name');
-
-      if (error) throw error;
-      return data || [];
+      return new Promise((resolve) => {
+        setTimeout(() => resolve([...categories].sort((a, b) => a.name.localeCompare(b.name))), 100);
+      });
     },
 
     getById: async (id: string): Promise<WorkoutCategory | null> => {
-      const { data, error } = await supabase
-        .from('workout_categories')
-        .select('*')
-        .eq('id', id)
-        .maybeSingle();
-
-      if (error) throw error;
-      return data;
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          const category = categories.find(c => c.id === id);
+          resolve(category || null);
+        }, 100);
+      });
     },
 
     add: async (category: Omit<WorkoutCategory, 'id' | 'created_at' | 'updated_at'>): Promise<WorkoutCategory> => {
-      const { data, error } = await supabase
-        .from('workout_categories')
-        .insert([category])
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          const newCategory: WorkoutCategory = {
+            ...category,
+            id: `cat${Date.now()}`,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+          categories.push(newCategory);
+          resolve(newCategory);
+        }, 100);
+      });
     },
 
     update: async (id: string, updates: Partial<Omit<WorkoutCategory, 'id' | 'created_at' | 'updated_at'>>): Promise<WorkoutCategory> => {
-      const { data, error } = await supabase
-        .from('workout_categories')
-        .update({ ...updates, updated_at: new Date().toISOString() })
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
+      return new Promise((resolve, reject) => {
+        setTimeout(() => {
+          const index = categories.findIndex(c => c.id === id);
+          if (index !== -1) {
+            categories[index] = {
+              ...categories[index],
+              ...updates,
+              updated_at: new Date().toISOString()
+            };
+            resolve(categories[index]);
+          } else {
+            reject(new Error('Category not found'));
+          }
+        }, 100);
+      });
     },
 
     delete: async (id: string): Promise<void> => {
-      const { error } = await supabase
-        .from('workout_categories')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+      return new Promise((resolve, reject) => {
+        setTimeout(() => {
+          const index = categories.findIndex(c => c.id === id);
+          if (index !== -1) {
+            categories.splice(index, 1);
+            resolve();
+          } else {
+            reject(new Error('Category not found'));
+          }
+        }, 100);
+      });
     }
   }
 };

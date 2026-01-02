@@ -18,7 +18,7 @@
     "team": "Engineering",
     "email": "sarah.j@company.com",
     "status": "Active",
-    "total_points": 5200,
+    "total_points": 1915,
     "role": "participant",
     "created_at": "2026-01-01T00:00:00Z",
     "updated_at": "2026-01-02T00:00:00Z"
@@ -30,7 +30,7 @@
     "team": "Marketing",
     "email": "michael.c@company.com",
     "status": "Active",
-    "total_points": 4200,
+    "total_points": 1435,
     "role": "participant",
     "created_at": "2026-01-01T00:00:00Z",
     "updated_at": "2026-01-02T00:00:00Z"
@@ -42,7 +42,7 @@
     "team": "Sales",
     "email": "emily.d@company.com",
     "status": "Active",
-    "total_points": 3800,
+    "total_points": 895,
     "role": "participant",
     "created_at": "2026-01-01T00:00:00Z",
     "updated_at": "2026-01-02T00:00:00Z"
@@ -54,7 +54,7 @@
     "team": "Engineering",
     "email": "david.m@company.com",
     "status": "Active",
-    "total_points": 3500,
+    "total_points": 1085,
     "role": "participant",
     "created_at": "2026-01-01T00:00:00Z",
     "updated_at": "2026-01-02T00:00:00Z"
@@ -66,7 +66,7 @@
     "team": "HR",
     "email": "lisa.a@company.com",
     "status": "Active",
-    "total_points": 3200,
+    "total_points": 930,
     "role": "participant",
     "created_at": "2026-01-01T00:00:00Z",
     "updated_at": "2026-01-02T00:00:00Z"
@@ -78,7 +78,7 @@
     "team": "Finance",
     "email": "robert.w@company.com",
     "status": "Active",
-    "total_points": 2900,
+    "total_points": 380,
     "role": "participant",
     "created_at": "2026-01-01T00:00:00Z",
     "updated_at": "2026-01-02T00:00:00Z"
@@ -90,7 +90,7 @@
     "team": "Design",
     "email": "jennifer.l@company.com",
     "status": "Active",
-    "total_points": 2600,
+    "total_points": 415,
     "role": "participant",
     "created_at": "2026-01-01T00:00:00Z",
     "updated_at": "2026-01-02T00:00:00Z"
