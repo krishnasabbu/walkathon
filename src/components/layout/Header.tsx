@@ -1,9 +1,19 @@
-import { LogOut } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/Button';
+import { useApp } from '@/contexts/AppContext';
+import { Select } from '@/components/ui/Select';
+import participantsData from '@/data/participants.json';
+import { Participant } from '@/types';
 
 export function Header() {
-  const { participant, signOut, isAdmin } = useAuth();
+  const { currentParticipant, setCurrentParticipant, isAdmin } = useApp();
+
+  const participants = participantsData as Participant[];
+
+  const handleUserSwitch = (participantId: string) => {
+    const participant = participants.find((p) => p.id === participantId);
+    if (participant) {
+      setCurrentParticipant(participant);
+    }
+  };
 
   return (
     <header className="bg-white shadow-md sticky top-0 z-50">
@@ -20,20 +30,21 @@ export function Header() {
 
           <div className="flex items-center gap-4">
             <div className="text-right">
-              <p className="font-medium text-gray-800">{participant?.name}</p>
               <p className="text-sm text-gray-600">
-                {isAdmin ? 'Admin' : 'Participant'} • {participant?.total_points || 0} pts
+                {isAdmin ? 'Admin' : 'Participant'} • {currentParticipant?.total_points || 0} pts
               </p>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => signOut()}
-              className="flex items-center gap-2"
+            <Select
+              value={currentParticipant.id}
+              onChange={(e) => handleUserSwitch(e.target.value)}
+              className="min-w-[200px]"
             >
-              <LogOut className="w-4 h-4" />
-              Logout
-            </Button>
+              {participants.map((participant) => (
+                <option key={participant.id} value={participant.id}>
+                  {participant.name} {participant.role === 'admin' ? '(Admin)' : ''}
+                </option>
+              ))}
+            </Select>
           </div>
         </div>
       </div>

@@ -1,9 +1,9 @@
 import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Users, Activity, Award } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useApp } from '@/contexts/AppContext';
 
 export function Navigation() {
-  const { isAdmin } = useAuth();
+  const { isAdmin } = useApp();
   const location = useLocation();
 
   const isActive = (path: string) => location.pathname === path;
