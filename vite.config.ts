@@ -10,6 +10,14 @@ export default defineConfig({
     }
   },
   optimizeDeps: {
-    include: ['xlsx']
+    include: ['xlsx'],
+    esbuildOptions: {
+      target: 'esnext'
+    }
+  },
+  build: {
+    commonjsOptions: {
+      include: [/xlsx/, /node_modules/]
+    }
   }
 })
