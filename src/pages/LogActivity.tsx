@@ -5,27 +5,47 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
-import { WorkoutTypes, WorkoutType, StepSlabs } from '@/types';
-import { calculateWorkoutPoints, calculateStepPoints } from '@/utils/points';
-import { Activity, Footprints, Award, CheckCircle } from 'lucide-react';
+import { WorkoutCategory } from '@/types';
+import { Activity, Award, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
 
 export function LogActivity() {
   const { currentParticipant } = useApp();
-  const [workoutType, setWorkoutType] = useState<WorkoutType>('Simple Cardio');
+  const [categories, setCategories] = useState<WorkoutCategory[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState('');
   const [activityDetails, setActivityDetails] = useState('');
   const [durationMinutes, setDurationMinutes] = useState('');
-  const [stepsCount, setStepsCount] = useState('');
   const [loading, setLoading] = useState(false);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [todayActivities, setTodayActivities] = useState<any[]>([]);
+
+  useEffect(() => {
+    loadCategories();
+  }, []);
 
   useEffect(() => {
     if (currentParticipant) {
       loadTodayActivities();
     }
   }, [currentParticipant]);
+
+  async function loadCategories() {
+    try {
+      setCategoriesLoading(true);
+      const data = await dataService.categories.getAll();
+      setCategories(data);
+      if (data.length > 0) {
+        setSelectedCategoryId(data[0].id);
+      }
+    } catch (err) {
+      console.error('Error loading categories:', err);
+      setError('Failed to load workout categories');
+    } finally {
+      setCategoriesLoading(false);
+    }
+  }
 
   async function loadTodayActivities() {
     if (!currentParticipant) return;
@@ -51,16 +71,15 @@ export function LogActivity() {
       return;
     }
 
-    const duration = parseInt(durationMinutes) || 0;
-    const steps = parseInt(stepsCount) || 0;
-
-    if (workoutType !== 'Steps Only' && duration < WorkoutTypes[workoutType].minDuration) {
-      setError(`${workoutType} requires minimum ${WorkoutTypes[workoutType].minDuration} minutes`);
+    if (!selectedCategoryId) {
+      setError('Please select a workout category');
       return;
     }
 
-    if (!activityDetails.trim()) {
-      setError('Please provide activity details');
+    const duration = parseInt(durationMinutes) || 0;
+
+    if (duration < 1) {
+      setError('Duration must be at least 1 minute');
       return;
     }
 
@@ -72,17 +91,20 @@ export function LogActivity() {
     setLoading(true);
 
     try {
-      const workoutPoints = calculateWorkoutPoints(workoutType, duration);
-      const stepPoints = calculateStepPoints(steps);
-      const totalPoints = workoutPoints + stepPoints;
+      const category = categories.find(c => c.id === selectedCategoryId);
+      if (!category) {
+        throw new Error('Selected category not found');
+      }
+
+      const totalPoints = category.points_per_minute * duration;
 
       await dataService.activities.add({
         date: format(new Date(), 'yyyy-MM-dd'),
         participant_id: currentParticipant.id,
-        workout_type: workoutType,
+        category_id: selectedCategoryId,
+        workout_type: category.name,
         activity_details: activityDetails,
         duration_minutes: duration,
-        steps_count: steps,
         points_earned: totalPoints,
         proof_filename: null
       });
@@ -90,7 +112,6 @@ export function LogActivity() {
       setSuccess(`Activity logged successfully! You earned ${totalPoints} points.`);
       setActivityDetails('');
       setDurationMinutes('');
-      setStepsCount('');
 
       await loadTodayActivities();
     } catch (err: any) {
@@ -100,13 +121,34 @@ export function LogActivity() {
     }
   }
 
-  const selectedWorkout = WorkoutTypes[workoutType];
-  const estimatedWorkoutPoints = calculateWorkoutPoints(workoutType, parseInt(durationMinutes) || 0);
-  const estimatedStepPoints = calculateStepPoints(parseInt(stepsCount) || 0);
-  const estimatedTotal = estimatedWorkoutPoints + estimatedStepPoints;
+  const selectedCategory = categories.find(c => c.id === selectedCategoryId);
+  const duration = parseInt(durationMinutes) || 0;
+  const estimatedPoints = selectedCategory ? selectedCategory.points_per_minute * duration : 0;
 
   const todayTotalPoints = todayActivities.reduce((sum, activity) => sum + activity.points_earned, 0);
   const hasLoggedToday = todayActivities.length > 0;
+
+  if (categoriesLoading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-xl text-gray-600">Loading...</div>
+      </div>
+    );
+  }
+
+  if (categories.length === 0) {
+    return (
+      <div className="max-w-4xl mx-auto">
+        <Card className="bg-yellow-50 border border-yellow-200">
+          <div className="text-center py-8">
+            <Activity className="w-16 h-16 text-yellow-600 mx-auto mb-4" />
+            <h3 className="text-xl font-bold text-yellow-900 mb-2">No Workout Categories Available</h3>
+            <p className="text-yellow-700">Please contact your admin to add workout categories first.</p>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -135,44 +177,34 @@ export function LogActivity() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <Select
-              label="Workout Type"
-              value={workoutType}
-              onChange={(e) => setWorkoutType(e.target.value as WorkoutType)}
+              label="Workout Category"
+              value={selectedCategoryId}
+              onChange={(e) => setSelectedCategoryId(e.target.value)}
             >
-              {Object.keys(WorkoutTypes).map((type) => (
-                <option key={type} value={type}>
-                  {WorkoutTypes[type as WorkoutType].icon} {type}
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name} ({category.points_per_minute} pts/min)
                 </option>
               ))}
             </Select>
 
             <Input
+              label="Duration (minutes)"
+              type="number"
+              placeholder="30"
+              value={durationMinutes}
+              onChange={(e) => setDurationMinutes(e.target.value)}
+              min="1"
+              required
+            />
+
+            <Input
               label="Activity Details"
-              placeholder="e.g., Morning jog at park, Yoga session, etc."
+              placeholder="e.g., Morning jog at park, Evening yoga session, etc."
               value={activityDetails}
               onChange={(e) => setActivityDetails(e.target.value)}
               required
             />
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input
-                label={`Duration (min) ${workoutType !== 'Steps Only' ? `- Min: ${selectedWorkout.minDuration}` : ''}`}
-                type="number"
-                placeholder="0"
-                value={durationMinutes}
-                onChange={(e) => setDurationMinutes(e.target.value)}
-                min="0"
-              />
-
-              <Input
-                label="Steps Count"
-                type="number"
-                placeholder="0"
-                value={stepsCount}
-                onChange={(e) => setStepsCount(e.target.value)}
-                min="0"
-              />
-            </div>
 
             {error && (
               <div className="bg-accent-50 border border-accent-200 text-accent-700 px-4 py-3 rounded-lg">
@@ -205,63 +237,53 @@ export function LogActivity() {
             </div>
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-secondary-700">Workout:</span>
-                <span className="font-bold text-secondary-900">{estimatedWorkoutPoints} pts</span>
+                <span className="text-sm text-secondary-700">Duration:</span>
+                <span className="font-bold text-secondary-900">{duration} min</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-secondary-700">Steps:</span>
-                <span className="font-bold text-secondary-900">{estimatedStepPoints} pts</span>
+                <span className="text-sm text-secondary-700">Rate:</span>
+                <span className="font-bold text-secondary-900">{selectedCategory?.points_per_minute || 0} pts/min</span>
               </div>
               <div className="border-t-2 border-secondary-200 pt-3 flex justify-between items-center">
                 <span className="font-bold text-secondary-900">Total:</span>
-                <span className="text-2xl font-bold text-secondary-900">{estimatedTotal} pts</span>
+                <span className="text-2xl font-bold text-secondary-900">{estimatedPoints} pts</span>
               </div>
-            </div>
-          </Card>
-
-          <Card>
-            <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-              <Footprints className="w-5 h-5 text-primary-600" />
-              Step Slabs
-            </h4>
-            <div className="space-y-2">
-              {StepSlabs.map((slab) => (
-                <div
-                  key={slab.steps}
-                  className={`flex justify-between items-center p-2 rounded ${
-                    parseInt(stepsCount) >= slab.steps
-                      ? 'bg-primary-100 text-primary-900'
-                      : 'bg-gray-50 text-gray-600'
-                  }`}
-                >
-                  <span className="text-sm font-medium">{slab.steps.toLocaleString()}+ steps</span>
-                  <span className="font-bold">{slab.points} pts</span>
-                </div>
-              ))}
             </div>
           </Card>
 
           <Card>
             <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
               <Activity className="w-5 h-5 text-accent-600" />
-              Selected Workout
+              Selected Category
             </h4>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Type:</span>
-                <span className="font-medium">{workoutType}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Points:</span>
-                <span className="font-medium text-primary-600">{selectedWorkout.points}</span>
-              </div>
-              {workoutType !== 'Steps Only' && (
+            {selectedCategory ? (
+              <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Min Duration:</span>
-                  <span className="font-medium">{selectedWorkout.minDuration} min</span>
+                  <span className="text-gray-600">Category:</span>
+                  <span className="font-medium">{selectedCategory.name}</span>
                 </div>
-              )}
-            </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Points/min:</span>
+                  <span className="font-medium text-primary-600">{selectedCategory.points_per_minute}</span>
+                </div>
+                <div className="bg-blue-50 border border-blue-200 p-3 rounded mt-3">
+                  <p className="text-xs text-blue-700">
+                    <strong>Examples:</strong><br/>
+                    30 min = {selectedCategory.points_per_minute * 30} pts<br/>
+                    60 min = {selectedCategory.points_per_minute * 60} pts
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">Select a category above</p>
+            )}
+          </Card>
+
+          <Card className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200">
+            <h4 className="font-bold text-green-900 mb-2">Quick Tip</h4>
+            <p className="text-sm text-green-700">
+              The longer you workout, the more points you earn! Stay consistent and reach your fitness goals.
+            </p>
           </Card>
         </div>
       </div>

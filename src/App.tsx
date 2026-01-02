@@ -6,6 +6,7 @@ import { ParticipantDashboard } from '@/pages/ParticipantDashboard';
 import { ParticipantManagement } from '@/pages/ParticipantManagement';
 import { LogActivity } from '@/pages/LogActivity';
 import { ConsistencyBonuses } from '@/pages/ConsistencyBonuses';
+import { WorkoutCategories } from '@/pages/WorkoutCategories';
 
 function AppRoutes() {
   const { isAdmin } = useApp();
@@ -24,6 +25,10 @@ function AppRoutes() {
         <Route
           path="/consistency-bonuses"
           element={isAdmin ? <ConsistencyBonuses /> : <Navigate to="/" />}
+        />
+        <Route
+          path="/categories"
+          element={isAdmin ? <WorkoutCategories /> : <Navigate to="/" />}
         />
         <Route
           path="/log-activity"

@@ -11,14 +11,22 @@ export interface Participant {
   updated_at: string;
 }
 
+export interface WorkoutCategory {
+  id: string;
+  name: string;
+  points_per_minute: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface DailyActivity {
   id: string;
   date: string;
   participant_id: string;
+  category_id?: string;
   workout_type: string;
   activity_details: string;
   duration_minutes: number;
-  steps_count: number;
   points_earned: number;
   proof_filename: string | null;
   created_at: string;

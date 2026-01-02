@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { dataService } from '@/services/dataService';
 import { Card } from '@/components/ui/Card';
-import { Users, Activity, Footprints, Award, TrendingUp } from 'lucide-react';
+import { Users, Activity, Award, TrendingUp } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { format, subDays } from 'date-fns';
 
@@ -9,7 +9,6 @@ interface DailyMetrics {
   totalParticipants: number;
   activeToday: number;
   totalWorkoutMinutes: number;
-  totalSteps: number;
   totalPointsToday: number;
 }
 
@@ -25,7 +24,6 @@ export function AdminDashboard() {
     totalParticipants: 0,
     activeToday: 0,
     totalWorkoutMinutes: 0,
-    totalSteps: 0,
     totalPointsToday: 0
   });
   const [leaderboard, setLeaderboard] = useState<Leaderboard[]>([]);
@@ -47,14 +45,12 @@ export function AdminDashboard() {
       const uniqueParticipantsToday = new Set(todayActivities?.map(a => a.participant_id)).size;
 
       const totalWorkoutMinutes = todayActivities?.reduce((sum, a) => sum + a.duration_minutes, 0) || 0;
-      const totalSteps = todayActivities?.reduce((sum, a) => sum + a.steps_count, 0) || 0;
       const totalPointsToday = todayActivities?.reduce((sum, a) => sum + a.points_earned, 0) || 0;
 
       setMetrics({
         totalParticipants: participants.length,
         activeToday: uniqueParticipantsToday,
         totalWorkoutMinutes,
-        totalSteps,
         totalPointsToday
       });
 
@@ -75,13 +71,11 @@ export function AdminDashboard() {
         const activities = await dataService.activities.getByDate(date);
 
         const uniqueParticipants = new Set(activities.map(a => a.participant_id)).size;
-        const totalSteps = activities.reduce((sum, a) => sum + a.steps_count, 0);
         const totalMinutes = activities.reduce((sum, a) => sum + a.duration_minutes, 0);
 
         return {
           date: format(new Date(date), 'MMM dd'),
           participants: uniqueParticipants,
-          steps: totalSteps,
           minutes: totalMinutes
         };
       });
@@ -127,7 +121,7 @@ export function AdminDashboard() {
         <p className="text-gray-600">Overview of all walkathon activities and participant performance</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="bg-gradient-to-br from-primary-50 to-primary-100 border border-primary-200">
           <div className="flex items-center justify-between">
             <div>
@@ -158,16 +152,6 @@ export function AdminDashboard() {
           </div>
         </Card>
 
-        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-blue-700">Total Steps</p>
-              <p className="text-3xl font-bold text-blue-900 mt-1">{metrics.totalSteps.toLocaleString()}</p>
-            </div>
-            <Footprints className="w-12 h-12 text-blue-600 opacity-50" />
-          </div>
-        </Card>
-
         <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200">
           <div className="flex items-center justify-between">
             <div>
@@ -190,20 +174,6 @@ export function AdminDashboard() {
               <Tooltip />
               <Legend />
               <Line type="monotone" dataKey="participants" stroke="#22c55e" strokeWidth={2} name="Active Participants" />
-            </LineChart>
-          </ResponsiveContainer>
-        </Card>
-
-        <Card>
-          <h3 className="text-xl font-bold text-gray-800 mb-4">Daily Steps Trend</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={dailyTrend}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Line type="monotone" dataKey="steps" stroke="#eab308" strokeWidth={2} name="Total Steps" />
             </LineChart>
           </ResponsiveContainer>
         </Card>

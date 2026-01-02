@@ -1,4 +1,5 @@
-import { Participant, DailyActivity, WeeklyBonus } from '@/types';
+import { Participant, DailyActivity, WeeklyBonus, WorkoutCategory } from '@/types';
+import { supabase } from '@/lib/supabase';
 import participantsData from '@/data/participants.json';
 import activitiesData from '@/data/activities.json';
 import bonusesData from '@/data/bonuses.json';
@@ -171,6 +172,61 @@ export const dataService = {
           resolve(createdBonuses);
         }, 100);
       });
+    }
+  },
+
+  categories: {
+    getAll: async (): Promise<WorkoutCategory[]> => {
+      const { data, error } = await supabase
+        .from('workout_categories')
+        .select('*')
+        .order('name');
+
+      if (error) throw error;
+      return data || [];
+    },
+
+    getById: async (id: string): Promise<WorkoutCategory | null> => {
+      const { data, error } = await supabase
+        .from('workout_categories')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
+    },
+
+    add: async (category: Omit<WorkoutCategory, 'id' | 'created_at' | 'updated_at'>): Promise<WorkoutCategory> => {
+      const { data, error } = await supabase
+        .from('workout_categories')
+        .insert([category])
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+
+    update: async (id: string, updates: Partial<Omit<WorkoutCategory, 'id' | 'created_at' | 'updated_at'>>): Promise<WorkoutCategory> => {
+      const { data, error } = await supabase
+        .from('workout_categories')
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+
+    delete: async (id: string): Promise<void> => {
+      const { error } = await supabase
+        .from('workout_categories')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
     }
   }
 };

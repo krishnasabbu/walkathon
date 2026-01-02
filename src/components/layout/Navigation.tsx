@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Activity, Award } from 'lucide-react';
+import { LayoutDashboard, Users, Activity, Award, FolderTree } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 
 export function Navigation() {
@@ -36,6 +36,18 @@ export function Navigation() {
               >
                 <Users className="w-5 h-5" />
                 Participants
+              </Link>
+
+              <Link
+                to="/categories"
+                className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-all duration-200 ${
+                  isActive('/categories')
+                    ? 'border-primary-600 text-primary-600 font-medium'
+                    : 'border-transparent text-gray-600 hover:text-primary-600'
+                }`}
+              >
+                <FolderTree className="w-5 h-5" />
+                Categories
               </Link>
 
               <Link
